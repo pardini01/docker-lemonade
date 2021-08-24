@@ -96,6 +96,14 @@ services:
       - /srv/lemonade/storage:/srv/storage
       - ./lemonade-spark-ext/target/lemonade-spark-ext-1.0-SNAPSHOT.jar:/usr/local/juicer/jars/lemonade-spark-ext-1.0-SNAPSHOT.jar
       - ./spark-fairness/target/spark-fairness_2.11-1.0.jar:/usr/local/juicer/jars/spark-fairness_2.11-1.0.jar
+      - ./config/metrics.properties:/usr/local/spark/conf/metrics.properties
+      - ./config/jmx_collector.yaml:/usr/local/spark/conf/jmx_collector.yaml
+      - ./jars/spark-metrics_2.11-2.3-2.1.0.jar:/usr/local/spark/jars/spark-metrics_2.11-2.3-2.1.0.jar
+      - ./jars/metrics-core-3.1.2.jar:/usr/local/spark/jars/metrics-core-3.2.5.jar
+      - ./jars/simpleclient-0.3.0.jar:/usr/local/spark/jars/simpleclient-0.3.0.jar
+      - ./jars/simpleclient_dropwizard-0.3.0.jar:/usr/local/spark/jars/simpleclient_dropwizard-0.3.0.jar
+      - ./jars/simpleclient_pushgateway-0.3.0.jar:/usr/local/spark/jars/simpleclient_pushgateway-0.3.0.jar
+      - ./jars/collector-0.12.0.jar:/usr/local/spark/jars/collector-0.12.0.jar
     networks:
       - default
     restart: always
@@ -113,6 +121,7 @@ services:
     networks:
       - default
     restart: always
+
 #   seed:
 #     build: ./seed
 #     image: eubrabigsea/seed
@@ -135,6 +144,40 @@ services:
 #     networks:
 #       - default
 #     restart: always
+
+  prometheus:
+    image: prom/prometheus:v2.28.1
+    ports:
+      - 9090:9090
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+    volumes:
+      - ./config/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+    depends_on:
+      - cadvisor
+    networks:
+      - default
+
+  pushgateway:
+    image: prom/pushgateway:v1.4.1
+    ports:
+      - 9091:9091
+    depends_on:
+      - prometheus
+    networks:
+      - default
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.38.6
+    ports:
+      - 8080:8080
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - default
 
 networks:
   default:

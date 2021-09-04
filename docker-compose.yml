@@ -10,7 +10,7 @@ services:
       - MYSQL_ROOT_PASSWORD=lemon
     volumes:
       - ./extras/initdb.d:/docker-entrypoint-initdb.d
-      - /srv/lemonade/mysql-dev:/var/lib/mysql
+      - ./storage/mysql-dev:/var/lib/mysql
     networks:
       default:
         aliases: [lemonade_db, db]
@@ -52,7 +52,7 @@ services:
     image: eubrabigsea/limonero
     volumes:
       - ./config/limonero-config.yaml:/usr/local/limonero/conf/limonero-config.yaml
-      - /srv/lemonade/storage:/srv/storage
+      - ./storage/storage:/srv/storage
     networks:
       - default
     restart: always
@@ -93,7 +93,7 @@ services:
     volumes:
       - ./config/juicer-config.yaml:/usr/local/juicer/conf/juicer-config.yaml
       - ./config/hdfs-site.xml:/usr/local/juicer/conf/hdfs-site.xml
-      - /srv/lemonade/storage:/srv/storage
+      - ./storage/storage:/srv/storage
       - ./lemonade-spark-ext/target/lemonade-spark-ext-1.0-SNAPSHOT.jar:/usr/local/juicer/jars/lemonade-spark-ext-1.0-SNAPSHOT.jar
       - ./spark-fairness/target/spark-fairness_2.11-1.0.jar:/usr/local/juicer/jars/spark-fairness_2.11-1.0.jar
       - ./config/metrics.properties:/usr/local/spark/conf/metrics.properties
@@ -181,21 +181,39 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.14.0
     environment:
       - discovery.type=single-node
-    #volumes:
-      #- elasticsearch:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+    volumes:
+      - elasticsearch:/usr/share/elasticsearch/data
     networks:
       - default
 
   filebeat:
     image: elastic/filebeat:7.14.0
+    user: root
+    environment:
+      - strict.perms=false
+      - output.elasticsearch.hosts=["elasticsearch:9200"]
     volumes:
-      - ./config/filebeat.yaml:/usr/share/filebeat/filebeat.yml
-      - /var/lib/docker/containers:/var/lib/docker/containers
+      - ./config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - elasticsearch
 
   grafana:
     image: grafana/grafana:8.1.2
     ports:
       - 23459:3000
+    volumes:
+      - grafana:/var/lib/grafana
+    depends_on:
+      - filebeat
+      - prometheus
 
 networks:
   default:
+
+volumes:
+  elasticsearch:
+  grafana:
